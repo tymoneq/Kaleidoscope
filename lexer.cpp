@@ -14,7 +14,7 @@ static double NumVal;
 
 // gettok - Return the next token from standard input
 static Token gettok() {
-  static int lastChar = ' ';
+  static char lastChar = ' ';
   while (isspace(lastChar)) {
     lastChar = getchar();
   }
@@ -115,10 +115,8 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
     return std::make_unique<VariableExprAST>(IdName);
 
   getNextToken();
-
   std::vector<std::unique_ptr<ExprAST>> Args;
-
-  if (CurTok == Token::tok_char && ThisChar != ')') {
+  if (ThisChar != ')') {
     while (true) {
       if (auto Arg = ParseExpression())
         Args.push_back(std::move(Arg));
@@ -149,12 +147,10 @@ static std::unique_ptr<ExprAST> ParsePrimary() {
     return ParseIdentifierExpr();
   } else if (CurTok == Token::tok_number) {
     return ParseNumberExpr();
-  } else if (CurTok == Token::tok_char) {
-    if (ThisChar == '(')
-      return ParseParentExpr();
-  } else {
-    return LogError("unknown token when expecting an expression");
+  } else if (CurTok == Token::tok_char && ThisChar == '(') {
+    return ParseParentExpr();
   }
+  return LogError("unknown token when expecting an expression");
 }
 
 /// BinopPrecedence - This holds the precedence for each binary operator that is
@@ -164,7 +160,7 @@ static std::map<char, int> BinopPrecedence;
 
 // GetTokPrecedence - Get the precedence of the pending binary operator token.
 static int GetTokPrecedence() {
-  if (CurTok == Token::tok_char)
+  if (CurTok != Token::tok_char)
     return -1;
 
   // Make sure it's a declared binoperator
@@ -189,7 +185,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
     if (TokPrec < ExprPrec)
       return LHS;
 
-    int BinOp = ThisChar;
+    char BinOp = ThisChar;
     getNextToken();
     auto RHS = ParsePrimary();
     if (!RHS)
