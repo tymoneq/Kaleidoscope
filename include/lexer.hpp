@@ -1,4 +1,4 @@
-#include "../include/ast.hpp"
+#include "ast.hpp"
 
 // The laxer returns tokens [0-255] if it is an unknown character, otherwise one
 // of these for known things

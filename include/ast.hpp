@@ -39,7 +39,7 @@ class CallExprAST : public ExprAST {
 
 public:
   CallExprAST(const std::string &Callee_,
-              const std::vector<std::unique_ptr<ExprAST>> &Args_)
+              std::vector<std::unique_ptr<ExprAST>> Args_)
       : Callee(Callee_), Args(std::move(Args_)) {};
 };
 
@@ -58,12 +58,12 @@ public:
   const std::string &getName() const { return Name; }
 };
 
-class FunctionalAST {
+class FunctionAST {
   std::unique_ptr<PrototypeAST> Proto;
   std::unique_ptr<ExprAST> Body;
 
 public:
-  FunctionalAST(std::unique_ptr<PrototypeAST> Proto_,
-                std::unique_ptr<ExprAST> Body_)
+  FunctionAST(std::unique_ptr<PrototypeAST> Proto_,
+              std::unique_ptr<ExprAST> Body_)
       : Proto(std::move(Proto_)), Body(std::move(Body_)) {};
 };

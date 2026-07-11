@@ -1,4 +1,4 @@
-#include "../include/lexer.hpp"
+#include "include/lexer.hpp"
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -9,7 +9,7 @@
 #include <vector>
 
 static std::string IdentifierStr;
-static int ThisChar;
+static char ThisChar;
 static double NumVal;
 
 // gettok - Return the next token from standard input
@@ -56,7 +56,7 @@ static Token gettok() {
   if (lastChar == EOF)
     return Token::tok_eof;
 
-  int ThisChar = lastChar;
+  ThisChar = lastChar;
   lastChar = getchar();
   return Token::tok_char;
 }
@@ -208,6 +208,112 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
   }
 }
 
+/// prototype
+///   ::= id '(' id* ')'
+static std::unique_ptr<PrototypeAST> ParsePrototype() {
+  if (CurTok != Token::tok_identifier)
+    return LogErrorP("Expected function name in prototype");
+
+  std::string FnName = IdentifierStr;
+  getNextToken();
+
+  if (CurTok == Token::tok_char && ThisChar != '(') 
+    return LogErrorP("Exprected '(' in prototype");
+  
+  // Read the list of argument names
+  std::vector<std::string> ArgNames;
+  while (getNextToken() == Token::tok_identifier) {
+    ArgNames.push_back(IdentifierStr);
+  }
+  if (CurTok == Token::tok_char && ThisChar != ')')
+    return LogErrorP("Expected ')' in prototype");
+
+  getNextToken();
+  return std::make_unique<PrototypeAST>(FnName, std::move(ArgNames));
+}
+/// definition ::= 'def' prototype expression
+static std::unique_ptr<FunctionAST> ParseDefinition() {
+  getNextToken();
+  auto Proto = ParsePrototype();
+  if (!Proto)
+    return nullptr;
+
+  if (auto E = ParseExpression())
+    return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
+
+  return nullptr;
+}
+
+// external ::= 'extern' prototype
+static std::unique_ptr<PrototypeAST> ParseExtern() {
+  getNextToken();
+  return ParsePrototype();
+}
+
+// toplevelexpr ::= expression
+static std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
+  if (auto E = ParseExpression()) {
+    auto Proto = std::make_unique<PrototypeAST>("__anon_expr",
+                                                std::vector<std::string>());
+    return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
+  }
+  return nullptr;
+}
+
+//===----------------------------------------------------------------------===//
+// Top-Level parsing
+//===----------------------------------------------------------------------===//
+
+static void HandleDefinition() {
+
+  if (ParseDefinition()) {
+    fprintf(stderr, "Parsed a function definition.\n");
+  } else {
+    getNextToken();
+  }
+}
+
+static void HandleExtern() {
+  if (ParseExtern()) {
+    fprintf(stderr, "Parsed an extern.\n");
+  } else {
+    getNextToken();
+  }
+}
+
+static void HandleTopLevelExpression() {
+  // Evaluate a top-level expression into an anonymous function.
+  if (ParseTopLevelExpr()) {
+    fprintf(stderr, "Parsed a top level expr.\n");
+  } else {
+    getNextToken();
+  }
+}
+
+static void MainLoop() {
+
+  while (true) {
+    fprintf(stderr, "ready> ");
+    if (CurTok == Token::tok_eof)
+      return;
+    else if (CurTok == Token::tok_char && ThisChar == ';') {
+      getNextToken();
+      break;
+    } else if (CurTok == Token::tok_def) {
+      HandleDefinition();
+      break;
+    } else if (CurTok == Token::tok_extern) {
+      HandleExtern();
+      break;
+    }
+
+    else {
+      HandleTopLevelExpression();
+      break;
+    }
+  }
+}
+
 int main() {
   // Install standard binary operators.
   // 1 is lowest precedence.
@@ -215,4 +321,13 @@ int main() {
   BinopPrecedence['+'] = 20;
   BinopPrecedence['-'] = 20;
   BinopPrecedence['*'] = 40; // highest.
+
+  // Prime the first token.
+  fprintf(stderr, "ready> ");
+  getNextToken();
+
+  // Run the main "interpreter loop" now.
+  MainLoop();
+
+  return 0;
 }
