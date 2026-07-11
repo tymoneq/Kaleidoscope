@@ -1,19 +1,9 @@
+#include "../include/lexer.hpp"
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
+#include <memory>
 #include <string>
-
-// The laxer returns tokens [0-255] if it is an unknown character, otherwise one
-// of these for known things
-
-enum class Token {
-  tok_eof,
-  tok_def,
-  tok_extern,
-  tok_identifier,
-  tok_number,
-  tok_char
-};
 
 static std::string IdentifierStr;
 static int ThisChar;
@@ -53,7 +43,7 @@ static Token gettok() {
 
   if (lastChar == '#') {
     do
-      lastChar == getchar();
+      lastChar = getchar();
     while (lastChar != EOF && lastChar != '\n' && lastChar != '\r');
 
     if (lastChar == EOF)
@@ -66,4 +56,41 @@ static Token gettok() {
   int ThisChar = lastChar;
   lastChar = getchar();
   return Token::tok_char;
+}
+
+// parsing
+
+static Token CurTok;
+static Token getNextToken() { return CurTok = gettok(); }
+
+// LogError* - These are little helper functions for error handling.
+std::unique_ptr<ExprAST> LogError(const char *Str) {
+  fprintf(stderr, "Error %s\n", Str);
+  return nullptr;
+}
+std::unique_ptr<PrototypeAST> LogErrorP(const char *Str) {
+  LogError(Str);
+  return nullptr;
+}
+
+// numberexpr ::= number
+static std::unique_ptr<ExprAST> ParseNumberExpr() {
+  auto Results = std::make_unique<NumberExprAST>(NumVal);
+  getNextToken();
+  return std::move(Results);
+}
+
+static std::unique_ptr<ExprAST> ParseExpression();
+
+// parenexpr ::= '(' expression ')'
+static std::unique_ptr<ExprAST> ParseParentExpr() {
+  getNextToken();
+  auto V = ParseExpression();
+  if (!V)
+    return nullptr;
+
+  if (CurTok == Token::tok_char && ThisChar != ')')
+    return LogError("expected ')'");
+  getNextToken(); // eat ).
+  return V;
 }
