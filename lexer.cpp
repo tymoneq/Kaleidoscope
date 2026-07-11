@@ -217,9 +217,9 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
   std::string FnName = IdentifierStr;
   getNextToken();
 
-  if (CurTok == Token::tok_char && ThisChar != '(') 
+  if (CurTok == Token::tok_char && ThisChar != '(')
     return LogErrorP("Exprected '(' in prototype");
-  
+
   // Read the list of argument names
   std::vector<std::string> ArgNames;
   while (getNextToken() == Token::tok_identifier) {
@@ -298,18 +298,12 @@ static void MainLoop() {
       return;
     else if (CurTok == Token::tok_char && ThisChar == ';') {
       getNextToken();
-      break;
     } else if (CurTok == Token::tok_def) {
       HandleDefinition();
-      break;
     } else if (CurTok == Token::tok_extern) {
       HandleExtern();
-      break;
-    }
-
-    else {
+    } else {
       HandleTopLevelExpression();
-      break;
     }
   }
 }
