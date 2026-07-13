@@ -11,13 +11,17 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
 #include <llvm/IR/Value.h>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
 using namespace llvm;
-
+extern std::unique_ptr<LLVMContext> TheContext;
+extern std::unique_ptr<IRBuilder<>> Builder;
+extern std::unique_ptr<Module> TheModule;
+extern std::map<std::string, Value *> NamedValues;
 class ExprAST {
 public:
   virtual ~ExprAST() = default;
@@ -75,6 +79,7 @@ public:
       : Name(Name_), Args(std::move(Args_)) {};
 
   const std::string &getName() const { return Name; }
+  Function *codegen();
 };
 
 class FunctionAST {
@@ -85,8 +90,8 @@ public:
   FunctionAST(std::unique_ptr<PrototypeAST> Proto_,
               std::unique_ptr<ExprAST> Body_)
       : Proto(std::move(Proto_)), Body(std::move(Body_)) {};
+  Function *codegen();
 };
-
 
 std::unique_ptr<ExprAST> LogError(const char *Str);
 std::unique_ptr<PrototypeAST> LogErrorP(const char *Str);
