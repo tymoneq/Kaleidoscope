@@ -111,7 +111,8 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 
   getNextToken();
 
-  if (CurTok == Token::tok_char && ThisChar != '(')
+  if (CurTok != Token::tok_char ||
+      (CurTok == Token::tok_char && ThisChar != '('))
     return std::make_unique<VariableExprAST>(IdName);
 
   getNextToken();
