@@ -1,2 +1,1 @@
-# Natalia
-My own language with compiler written in C++ 
+My own language with JIT written in C++
