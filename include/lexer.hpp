@@ -1,4 +1,5 @@
-#include "ast.hpp"
+
+#include <llvm/IR/Value.h>
 #include <map>
 
 // The laxer returns tokens [0-255] if it is an unknown character, otherwise one
@@ -19,8 +20,8 @@ extern double NumVal;
 extern std::map<char, int> BinopPrecedence;
 extern Token CurTok;
 
-std::unique_ptr<ExprAST> LogError(const char *Str);
-std::unique_ptr<PrototypeAST> LogErrorP(const char *Str);
+
+
 Token gettok();
 Token getNextToken();
 

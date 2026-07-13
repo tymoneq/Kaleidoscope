@@ -1,7 +1,9 @@
 #include "../include/lexer.hpp"
+#include "../include/ast.hpp"
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
+#include <llvm/IR/Value.h>
 #include <map>
 #include <memory>
 #include <string>
@@ -63,22 +65,12 @@ Token gettok() {
   return Token::tok_char;
 }
 
-/////////////////////////////////////////////////////////////
 // parsing
-//
-/////////////////////////////////////////////////////////////
+//------------------------------------------------//
+//------------------------------------------------//
+//------------------------------------------------//
 
 Token getNextToken() { return CurTok = gettok(); }
-
-// LogError* - These are little helper functions for error handling.
-std::unique_ptr<ExprAST> LogError(const char *Str) {
-  fprintf(stderr, "Error %s\n", Str);
-  return nullptr;
-}
-std::unique_ptr<PrototypeAST> LogErrorP(const char *Str) {
-  LogError(Str);
-  return nullptr;
-}
 
 // numberexpr ::= number
 static std::unique_ptr<ExprAST> ParseNumberExpr() {
@@ -256,7 +248,9 @@ static std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
   return nullptr;
 }
 
-
+//------------------------------------------------//
+//------------------------------------------------//
+//------------------------------------------------//
 static void HandleDefinition() {
 
   if (ParseDefinition()) {

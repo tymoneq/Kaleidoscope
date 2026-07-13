@@ -1,12 +1,27 @@
 #pragma once
+#include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Verifier.h"
+#include <llvm/IR/Value.h>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+using namespace llvm;
+
 class ExprAST {
 public:
   virtual ~ExprAST() = default;
+  virtual Value *codegen() = 0;
 };
 
 class NumberExprAST : public ExprAST {
@@ -14,6 +29,7 @@ class NumberExprAST : public ExprAST {
 
 public:
   NumberExprAST(double Val) : Val(Val) {};
+  Value *codegen() override;
 };
 
 class VariableExprAST : public ExprAST {
@@ -21,6 +37,7 @@ class VariableExprAST : public ExprAST {
 
 public:
   VariableExprAST(const std::string &Name_) : Name(Name_) {};
+  Value *codegen() override;
 };
 
 class BinaryExprAST : public ExprAST {
@@ -31,6 +48,7 @@ public:
   BinaryExprAST(char Op_, std::unique_ptr<ExprAST> LHS_,
                 std::unique_ptr<ExprAST> RHS_)
       : Op(Op_), LHS(std::move(LHS_)), RHS(std::move(RHS_)) {};
+  Value *codegen() override;
 };
 
 class CallExprAST : public ExprAST {
@@ -41,6 +59,7 @@ public:
   CallExprAST(const std::string &Callee_,
               std::vector<std::unique_ptr<ExprAST>> Args_)
       : Callee(Callee_), Args(std::move(Args_)) {};
+  Value *codegen() override;
 };
 
 /// PrototypeAST - This class represents the "prototype" for a function,
@@ -67,3 +86,8 @@ public:
               std::unique_ptr<ExprAST> Body_)
       : Proto(std::move(Proto_)), Body(std::move(Body_)) {};
 };
+
+
+std::unique_ptr<ExprAST> LogError(const char *Str);
+std::unique_ptr<PrototypeAST> LogErrorP(const char *Str);
+Value *LogErrorV(const char *Str);
