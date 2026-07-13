@@ -1,7 +1,14 @@
 #include "include/lexer.hpp"
-#include "include/ast.hpp"
+#include "include/llvmStructs.hpp"
+#include "include/optimizer.hpp"
+#include "llvm/Support/TargetSelect.h"
+#include <memory>
 
 int main() {
+  llvm::InitializeNativeTarget();
+  llvm::InitializeNativeTargetAsmPrinter();
+  llvm::InitializeNativeTargetAsmParser();
+  
   // Install standard binary operators.
   // 1 is lowest precedence.
   BinopPrecedence['<'] = 10;
@@ -13,7 +20,8 @@ int main() {
   fprintf(stderr, "ready> ");
   getNextToken();
 
-  InitializeModule();
+  TheJIT = ExitOnErr(llvm::orc::KaleidoscopeJIT::Create());
+  InitializeModuleAndManagers();
 
   // Run the main "interpreter loop" now.
   MainLoop();

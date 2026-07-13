@@ -23,5 +23,4 @@ extern Token CurTok;
 
 Token gettok();
 Token getNextToken();
-void InitializeModule();
 void MainLoop();

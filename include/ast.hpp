@@ -1,27 +1,16 @@
 #pragma once
-#include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
-#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
 #include <llvm/IR/Value.h>
-#include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-
 using namespace llvm;
-extern std::unique_ptr<LLVMContext> TheContext;
-extern std::unique_ptr<IRBuilder<>> Builder;
-extern std::unique_ptr<Module> TheModule;
-extern std::map<std::string, Value *> NamedValues;
+
 class ExprAST {
 public:
   virtual ~ExprAST() = default;
@@ -96,3 +85,4 @@ public:
 std::unique_ptr<ExprAST> LogError(const char *Str);
 std::unique_ptr<PrototypeAST> LogErrorP(const char *Str);
 Value *LogErrorV(const char *Str);
+Function *getFunction(std::string Name);

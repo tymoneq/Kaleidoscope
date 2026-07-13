@@ -1,6 +1,6 @@
 #include "../include/ast.hpp"
+#include "../include/llvmStructs.hpp"
 #include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -16,11 +16,6 @@
 #include <vector>
 
 using namespace llvm;
-
-std::unique_ptr<LLVMContext> TheContext;
-std::unique_ptr<IRBuilder<>> Builder;
-std::unique_ptr<Module> TheModule;
-std::map<std::string, Value *> NamedValues;
 
 Value *NumberExprAST::codegen() {
   return ConstantFP::get(*TheContext, APFloat(Val));
@@ -56,9 +51,19 @@ Value *BinaryExprAST::codegen() {
   }
 }
 
+Function *getFunction(std::string Name) {
+  if (auto *F = TheModule->getFunction(Name))
+    return F;
+
+  auto FI = FunctionProtos.find(Name);
+  if (FI != FunctionProtos.end())
+    return FI->second->codegen();
+  return nullptr;
+}
+
 Value *CallExprAST::codegen() {
   // Look up the name in the global module table.
-  Function *CalleeF = TheModule->getFunction(Callee);
+  Function *CalleeF = getFunction(Callee);
   if (!CalleeF)
     return LogErrorV("Unknown function name");
 
@@ -93,7 +98,9 @@ Function *PrototypeAST::codegen() {
 
 Function *FunctionAST::codegen() {
 
-  Function *TheFunction = TheModule->getFunction(Proto->getName());
+  auto &P = *Proto;
+  FunctionProtos[Proto->getName()] = std::move(Proto);
+  Function *TheFunction = getFunction(P.getName());
   if (!TheFunction)
     TheFunction = Proto->codegen();
 
@@ -114,6 +121,8 @@ Function *FunctionAST::codegen() {
   if (Value *RetVal = Body->codegen()) {
     Builder->CreateRet(RetVal);
     verifyFunction(*TheFunction);
+    TheFPM->run(*TheFunction, *TheFAM);
+
     return TheFunction;
   }
 

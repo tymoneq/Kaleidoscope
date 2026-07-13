@@ -1,10 +1,14 @@
 #include "../include/lexer.hpp"
 #include "../include/ast.hpp"
-#include <llvm/IR/Value.h>
+#include "../include/llvmStructs.hpp"
+#include "../include/optimizer.hpp"
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
+#include <llvm/ExecutionEngine/Orc/ThreadSafeModule.h>
+#include <llvm/IR/Function.h>
 #include <llvm/IR/Value.h>
+#include <llvm/Support/Error.h>
 #include <map>
 #include <memory>
 #include <string>
@@ -255,21 +259,15 @@ static std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 // Top-Level parsing and JIT Driver
 //===----------------------------------------------------------------------===//
 
-void InitializeModule() {
-  // Open a new context and module.
-  TheContext = std::make_unique<LLVMContext>();
-  TheModule = std::make_unique<Module>("my cool jit", *TheContext);
-
-  // Create a new builder for the module.
-  Builder = std::make_unique<IRBuilder<>>(*TheContext);
-}
-
 static void HandleDefinition() {
   if (auto FnAST = ParseDefinition()) {
     if (auto *FnIR = FnAST->codegen()) {
       fprintf(stderr, "Read function definition:");
       FnIR->print(errs());
       fprintf(stderr, "\n");
+      ExitOnErr(TheJIT->addModule(
+          ThreadSafeModule(std::move(TheModule), std::move(TheContext))));
+      InitializeModuleAndManagers();
     }
   } else {
     // Skip token for error recovery.
@@ -283,6 +281,7 @@ static void HandleExtern() {
       fprintf(stderr, "Read extern: ");
       FnIR->print(errs());
       fprintf(stderr, "\n");
+      FunctionProtos[ProtoAST->getName()] = std::move(ProtoAST);
     }
   } else {
     // Skip token for error recovery.
@@ -294,12 +293,17 @@ static void HandleTopLevelExpression() {
   // Evaluate a top-level expression into an anonymous function.
   if (auto FnAST = ParseTopLevelExpr()) {
     if (auto *FnIR = FnAST->codegen()) {
-      fprintf(stderr, "Read top-level expression:");
-      FnIR->print(errs());
-      fprintf(stderr, "\n");
+      auto RT = TheJIT->getMainJITDylib().createResourceTracker();
+      auto TSM = ThreadSafeModule(std::move(TheModule), std::move(TheContext));
+      ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
+      InitializeModuleAndManagers();
 
-      // Remove the anonymous expression.
-      FnIR->eraseFromParent();
+      auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr"));
+      double (*FP)() = ExprSymbol.toPtr<double (*)()>();
+      fprintf(stderr, "Evaluated to %f\n", FP());
+
+      // Delete the anonymous expression module from the JIT.
+      ExitOnErr(RT->remove());
     }
   } else {
     // Skip token for error recovery.
