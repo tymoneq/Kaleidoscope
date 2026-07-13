@@ -1,4 +1,4 @@
-#include "include/lexer.hpp"
+#include "../include/lexer.hpp"
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -8,12 +8,14 @@
 #include <utility>
 #include <vector>
 
-static std::string IdentifierStr;
-static char ThisChar;
-static double NumVal;
+std::string IdentifierStr;
+char ThisChar;
+double NumVal;
+std::map<char, int> BinopPrecedence;
+Token CurTok;
 
 // gettok - Return the next token from standard input
-static Token gettok() {
+Token gettok() {
   static char lastChar = ' ';
   while (isspace(lastChar)) {
     lastChar = getchar();
@@ -66,8 +68,7 @@ static Token gettok() {
 //
 /////////////////////////////////////////////////////////////
 
-static Token CurTok;
-static Token getNextToken() { return CurTok = gettok(); }
+Token getNextToken() { return CurTok = gettok(); }
 
 // LogError* - These are little helper functions for error handling.
 std::unique_ptr<ExprAST> LogError(const char *Str) {
@@ -156,8 +157,6 @@ static std::unique_ptr<ExprAST> ParsePrimary() {
 
 /// BinopPrecedence - This holds the precedence for each binary operator that is
 /// defined.
-
-static std::map<char, int> BinopPrecedence;
 
 // GetTokPrecedence - Get the precedence of the pending binary operator token.
 static int GetTokPrecedence() {
@@ -257,9 +256,6 @@ static std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
   return nullptr;
 }
 
-//===----------------------------------------------------------------------===//
-// Top-Level parsing
-//===----------------------------------------------------------------------===//
 
 static void HandleDefinition() {
 
@@ -287,7 +283,7 @@ static void HandleTopLevelExpression() {
   }
 }
 
-static void MainLoop() {
+void MainLoop() {
 
   while (true) {
     fprintf(stderr, "ready> ");
@@ -303,22 +299,4 @@ static void MainLoop() {
       HandleTopLevelExpression();
     }
   }
-}
-
-int main() {
-  // Install standard binary operators.
-  // 1 is lowest precedence.
-  BinopPrecedence['<'] = 10;
-  BinopPrecedence['+'] = 20;
-  BinopPrecedence['-'] = 20;
-  BinopPrecedence['*'] = 40; // highest.
-
-  // Prime the first token.
-  fprintf(stderr, "ready> ");
-  getNextToken();
-
-  // Run the main "interpreter loop" now.
-  MainLoop();
-
-  return 0;
 }
