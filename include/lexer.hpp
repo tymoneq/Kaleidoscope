@@ -11,7 +11,11 @@ enum class Token {
   tok_extern,
   tok_identifier,
   tok_number,
-  tok_char
+  tok_char,
+  //  control
+  tok_if,
+  tok_then,
+  tok_else,
 };
 
 extern std::string IdentifierStr;
@@ -19,7 +23,6 @@ extern char ThisChar;
 extern double NumVal;
 extern std::map<char, int> BinopPrecedence;
 extern Token CurTok;
-
 
 Token gettok();
 Token getNextToken();

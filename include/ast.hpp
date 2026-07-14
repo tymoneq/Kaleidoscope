@@ -33,6 +33,17 @@ public:
   Value *codegen() override;
 };
 
+class IfExpresAST : public ExprAST {
+  std::unique_ptr<ExprAST> Cond, Then, Else;
+
+public:
+  IfExpresAST(std::unique_ptr<ExprAST> Cond_, std::unique_ptr<ExprAST> Then_,
+              std::unique_ptr<ExprAST> Else_)
+      : Cond(std::move(Cond_)), Then(std::move(Then_)),
+        Else(std::move(Else_)) {};
+  Value *codegen() override;
+};
+
 class BinaryExprAST : public ExprAST {
   char Op;
   std::unique_ptr<ExprAST> LHS, RHS;
