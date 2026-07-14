@@ -19,12 +19,16 @@ enum class Token {
   // for loop
   tok_for,
   tok_in,
+  // user operators
+  tok_binary,
+  tok_unary,
+
 };
 
 extern std::string IdentifierStr;
 extern char ThisChar;
 extern double NumVal;
-extern std::map<char, int> BinopPrecedence;
+
 extern Token CurTok;
 
 Token gettok();

@@ -10,6 +10,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
+#include <cassert>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Value.h>
@@ -147,8 +148,14 @@ Value *BinaryExprAST::codegen() {
     L = Builder->CreateFCmpULT(L, R, "cmptmp");
     return Builder->CreateUIToFP(L, Type::getDoubleTy(*TheContext), "booltmp");
   default:
-    return LogErrorV("Invalid binary operator");
+    break;
   }
+  // If it wasn't a builtin binary operator, it must be a user defined one. Emit
+  // a call to it.
+  Function *F = getFunction(std::string("binary") + Op);
+  assert(F && "binary operator not found!");
+  Value *Ops[2] = {L, R};
+  return Builder->CreateCall(F, Ops, "binop");
 }
 
 Function *getFunction(std::string Name) {
@@ -201,14 +208,12 @@ Function *FunctionAST::codegen() {
   auto &P = *Proto;
   FunctionProtos[Proto->getName()] = std::move(Proto);
   Function *TheFunction = getFunction(P.getName());
-  if (!TheFunction)
-    TheFunction = Proto->codegen();
 
   if (!TheFunction)
     return nullptr;
 
-  if (!TheFunction->empty())
-    return (Function *)LogErrorV("Function cannot be redefined");
+  if (P.isBinaryOp())
+    BinopPrecedence[P.getOperatorName()] = P.getBinaryPrecedence();
 
   BasicBlock *BB = BasicBlock::Create(*TheContext, "entry", TheFunction);
   Builder->SetInsertPoint(BB);
@@ -243,4 +248,16 @@ std::unique_ptr<PrototypeAST> LogErrorP(const char *Str) {
 Value *LogErrorV(const char *Str) {
   LogError(Str);
   return nullptr;
+}
+
+Value *UnaryExprAST::codegen() {
+  Value *OperandV = Operand->codegen();
+  if (!OperandV)
+    return nullptr;
+
+  Function *F = getFunction(std::string("unary") + Opcode);
+  if (!F)
+    return LogErrorV("Unknown unary operator");
+
+  return Builder->CreateCall(F, OperandV, "unop");
 }

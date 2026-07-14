@@ -20,7 +20,6 @@ using namespace llvm;
 std::string IdentifierStr;
 char ThisChar;
 double NumVal;
-std::map<char, int> BinopPrecedence;
 Token CurTok;
 
 // gettok - Return the next token from standard input
@@ -49,7 +48,10 @@ Token gettok() {
       return Token::tok_for;
     else if (IdentifierStr == "in")
       return Token::tok_in;
-
+    else if (IdentifierStr == "binary")
+      return Token::tok_binary;
+    else if (IdentifierStr == "unary")
+      return Token::tok_unary;
     return Token::tok_identifier;
   }
 
@@ -259,9 +261,22 @@ static int GetTokPrecedence() {
 
   return TokPrec;
 }
+// unary
+// ::= primary
+// ::= `!` unary
+static std::unique_ptr<ExprAST> ParseUnary() {
+  if (CurTok != Token::tok_char ||
+      (CurTok == Token::tok_char && (ThisChar == '(' || ThisChar == ',')))
+    return ParsePrimary();
 
+  char Opc = ThisChar;
+  getNextToken();
+  if (auto Operand = ParseUnary())
+    return std::make_unique<UnaryExprAST>(Opc, std::move(Operand));
+  return nullptr;
+}
 static std::unique_ptr<ExprAST> ParseExpression() {
-  auto LHS = ParsePrimary();
+  auto LHS = ParseUnary();
   if (!LHS)
     return nullptr;
   return ParseBinOpRHS(0, std::move(LHS));
@@ -276,7 +291,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 
     char BinOp = ThisChar;
     getNextToken();
-    auto RHS = ParsePrimary();
+    auto RHS = ParseUnary();
     if (!RHS)
       return nullptr;
 
@@ -296,11 +311,46 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 /// prototype
 ///   ::= id '(' id* ')'
 static std::unique_ptr<PrototypeAST> ParsePrototype() {
-  if (CurTok != Token::tok_identifier)
-    return LogErrorP("Expected function name in prototype");
-
   std::string FnName = IdentifierStr;
-  getNextToken();
+  unsigned Kind = 0;
+  unsigned BinaryPrecedence = 30;
+
+  switch (CurTok) {
+  default:
+    return LogErrorP("Expected function name in prototype");
+  case Token::tok_identifier:
+    FnName = IdentifierStr;
+    Kind = 0;
+    getNextToken();
+    break;
+
+  case Token::tok_unary:
+    getNextToken();
+    if (!isascii(ThisChar))
+      return LogErrorP("Expected unary operator");
+    FnName = "unary";
+    FnName += (char)ThisChar;
+    Kind = 1;
+    getNextToken();
+    break;
+
+  case Token::tok_binary:
+    getNextToken();
+    if (!isascii(ThisChar))
+      return LogErrorP("Expected binary operator");
+    FnName = "binary";
+    FnName += char(ThisChar);
+    Kind = 2;
+    getNextToken();
+
+    if (CurTok == Token::tok_number) {
+      if (NumVal < 1 || NumVal > 100)
+        return LogErrorP("Invalid precedence: must be 1..100");
+      BinaryPrecedence = (unsigned)NumVal;
+      getNextToken();
+    }
+    break;
+  }
 
   if (CurTok == Token::tok_char && ThisChar != '(')
     return LogErrorP("Exprected '(' in prototype");
@@ -314,7 +364,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
     return LogErrorP("Expected ')' in prototype");
 
   getNextToken();
-  return std::make_unique<PrototypeAST>(FnName, std::move(ArgNames));
+  return std::make_unique<PrototypeAST>(FnName, std::move(ArgNames), Kind != 0,
+                                        BinaryPrecedence);
 }
 /// definition ::= 'def' prototype expression
 static std::unique_ptr<FunctionAST> ParseDefinition() {
@@ -329,7 +380,6 @@ static std::unique_ptr<FunctionAST> ParseDefinition() {
   return nullptr;
 }
 
-// external ::= 'extern' prototype
 static std::unique_ptr<PrototypeAST> ParseExtern() {
   getNextToken();
   return ParsePrototype();

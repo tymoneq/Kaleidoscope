@@ -40,3 +40,4 @@ extern std::unique_ptr<PassInstrumentationCallbacks> ThePIC;
 extern std::unique_ptr<StandardInstrumentations> TheSI;
 extern std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
 extern ExitOnError ExitOnErr;
+extern std::map<char, int> BinopPrecedence;

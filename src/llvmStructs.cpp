@@ -15,3 +15,4 @@ std::unique_ptr<PassInstrumentationCallbacks> ThePIC;
 std::unique_ptr<StandardInstrumentations> TheSI;
 std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
 ExitOnError ExitOnErr;
+std::map<char, int> BinopPrecedence;
