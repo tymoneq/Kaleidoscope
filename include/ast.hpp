@@ -44,6 +44,21 @@ public:
   Value *codegen() override;
 };
 
+// ForExprAST - Expression class for for/in
+class ForExprAST : public ExprAST {
+  std::string VarName;
+  std::unique_ptr<ExprAST> Start, End, Step, Body;
+
+public:
+  ForExprAST(const std::string &Name_, std::unique_ptr<ExprAST> Start_,
+             std::unique_ptr<ExprAST> End_, std::unique_ptr<ExprAST> Step_,
+             std::unique_ptr<ExprAST> Body_)
+      : VarName(Name_), Start(std::move(Start_)), End(std::move(End_)),
+        Step(std::move(Step_)), Body(std::move(Body_)) {};
+
+  Value *codegen() override;
+};
+
 class BinaryExprAST : public ExprAST {
   char Op;
   std::unique_ptr<ExprAST> LHS, RHS;

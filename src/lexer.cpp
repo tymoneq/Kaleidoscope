@@ -45,6 +45,10 @@ Token gettok() {
       return Token::tok_else;
     else if (IdentifierStr == "then")
       return Token::tok_then;
+    else if (IdentifierStr == "for")
+      return Token::tok_for;
+    else if (IdentifierStr == "in")
+      return Token::tok_in;
 
     return Token::tok_identifier;
   }
@@ -174,6 +178,54 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
                                        std::move(Else));
 }
 
+// forexpr ::= for identifier = expr, in expression
+static std::unique_ptr<ExprAST> ParseForExpr() {
+  getNextToken();
+
+  if (CurTok != Token::tok_identifier)
+    return LogError("expected identifier after for");
+
+  std::string IdName = IdentifierStr;
+  getNextToken();
+
+  if (CurTok != Token::tok_char ||
+      (CurTok == Token::tok_char && ThisChar != '='))
+    return LogError("expected '=' after for");
+
+  getNextToken();
+
+  auto Start = ParseExpression();
+  if (!Start)
+    return nullptr;
+  if (CurTok != Token::tok_char ||
+      (CurTok == Token::tok_char && ThisChar != ','))
+    return LogError("expected ',' after for start value");
+  getNextToken();
+
+  auto End = ParseExpression();
+  if (!End)
+    return nullptr;
+
+  std::unique_ptr<ExprAST> Step;
+  if (CurTok == Token::tok_char && ThisChar == ',') {
+    getNextToken();
+    Step = ParseExpression();
+    if (!Step)
+      return nullptr;
+  }
+
+  if (CurTok != Token::tok_in)
+    return LogError("expected 'in' after for");
+  getNextToken();
+
+  auto Body = ParseExpression();
+  if (!Body)
+    return nullptr;
+
+  return std::make_unique<ForExprAST>(IdName, std::move(Start), std::move(End),
+                                      std::move(Step), std::move(Body));
+}
+
 /// primary
 ///   ::= identifierexpr
 ///   ::= numberexpr
@@ -187,7 +239,8 @@ static std::unique_ptr<ExprAST> ParsePrimary() {
     return ParseParentExpr();
   } else if (CurTok == Token::tok_if)
     return ParseIfExpr();
-
+  else if (CurTok == Token::tok_for)
+    return ParseForExpr();
   return LogError("unknown token when expecting an expression");
 }
 

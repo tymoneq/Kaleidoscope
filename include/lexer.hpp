@@ -16,6 +16,9 @@ enum class Token {
   tok_if,
   tok_then,
   tok_else,
+  // for loop
+  tok_for,
+  tok_in,
 };
 
 extern std::string IdentifierStr;
