@@ -33,6 +33,7 @@ class VariableExprAST : public ExprAST {
 public:
   VariableExprAST(const std::string &Name_) : Name(Name_) {};
   Value *codegen() override;
+  std::string getName() const { return Name; }
 };
 
 class IfExpresAST : public ExprAST {
@@ -131,6 +132,19 @@ public:
               std::unique_ptr<ExprAST> Body_)
       : Proto(std::move(Proto_)), Body(std::move(Body_)) {};
   Function *codegen();
+};
+
+class VarExprAST : public ExprAST {
+  std::vector<std::pair<std::string, std::unique_ptr<ExprAST>>> VarNames;
+  std::unique_ptr<ExprAST> Body;
+
+public:
+  VarExprAST(
+      std::vector<std::pair<std::string, std::unique_ptr<ExprAST>>> VarNames,
+      std::unique_ptr<ExprAST> Body)
+      : VarNames(std::move(VarNames)), Body(std::move(Body)) {};
+
+  Value *codegen() override;
 };
 
 std::unique_ptr<ExprAST> LogError(const char *Str);

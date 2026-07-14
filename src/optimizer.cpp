@@ -1,5 +1,7 @@
 #include "../include/optimizer.hpp"
 #include "../include/llvmStructs.hpp"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Transforms/Utils/Mem2Reg.h"
 #include <llvm/IR/Value.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Transforms/InstCombine/InstCombine.h>
@@ -33,9 +35,12 @@ void InitializeModuleAndManagers(void) {
   TheFPM->addPass(GVNPass());
   TheFPM->addPass(SimplifyCFGPass());
 
+  TheFPM->addPass(PromotePass());
+  TheFPM->addPass(InstCombinePass());
+  TheFPM->addPass(ReassociatePass());
+
   PassBuilder PB;
   PB.registerModuleAnalyses(*TheMAM);
   PB.registerFunctionAnalyses(*TheFAM);
   PB.crossRegisterProxies(*TheLAM, *TheFAM, *TheCGAM, *TheMAM);
-
 }

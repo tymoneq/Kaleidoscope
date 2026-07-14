@@ -22,6 +22,7 @@ enum class Token {
   // user operators
   tok_binary,
   tok_unary,
+  tok_var,
 
 };
 

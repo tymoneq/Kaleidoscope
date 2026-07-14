@@ -22,6 +22,8 @@
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Scalar/Reassociate.h"
 #include "llvm/Transforms/Scalar/SimplifyCFG.h"
+#include <llvm/ADT/StringRef.h>
+#include <llvm/IR/Instructions.h>
 #include <map>
 
 using namespace llvm;
@@ -29,7 +31,7 @@ using namespace llvm::orc;
 extern std::unique_ptr<LLVMContext> TheContext;
 extern std::unique_ptr<IRBuilder<>> Builder;
 extern std::unique_ptr<Module> TheModule;
-extern std::map<std::string, Value *> NamedValues;
+extern std::map<std::string, AllocaInst *> NamedValues;
 extern std::unique_ptr<KaleidoscopeJIT> TheJIT;
 extern std::unique_ptr<FunctionPassManager> TheFPM;
 extern std::unique_ptr<LoopAnalysisManager> TheLAM;
@@ -41,3 +43,5 @@ extern std::unique_ptr<StandardInstrumentations> TheSI;
 extern std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
 extern ExitOnError ExitOnErr;
 extern std::map<char, int> BinopPrecedence;
+
+AllocaInst * CreateEntryBlockAlloca(Function* TheFunction, StringRef VarName);

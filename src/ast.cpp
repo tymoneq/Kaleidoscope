@@ -11,6 +11,7 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
 #include <cassert>
+#include <cstddef>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Value.h>
@@ -25,11 +26,11 @@ Value *NumberExprAST::codegen() {
 }
 
 Value *VariableExprAST::codegen() {
-  Value *V = NamedValues[Name];
-  if (!V)
+  AllocaInst *A = NamedValues[Name];
+  if (!A)
     LogErrorV("Unknown variable name");
 
-  return V;
+  return Builder->CreateLoad(A->getAllocatedType(), A, Name.c_str());
 }
 
 Value *IfExpresAST::codegen() {
@@ -78,22 +79,23 @@ Value *IfExpresAST::codegen() {
 }
 
 Value *ForExprAST::codegen() {
+
+  Function *TheFunction = Builder->GetInsertBlock()->getParent();
+
+  AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, VarName);
   Value *StartVal = Start->codegen();
   if (!StartVal)
     return nullptr;
 
-  Function *TheFunction = Builder->GetInsertBlock()->getParent();
-  BasicBlock *PreheaderBB = Builder->GetInsertBlock();
+  Builder->CreateStore(StartVal, Alloca);
   BasicBlock *LoopBB = BasicBlock::Create(*TheContext, "loop", TheFunction);
 
   Builder->CreateBr(LoopBB);
   Builder->SetInsertPoint(LoopBB);
-  PHINode *Variable =
-      Builder->CreatePHI(Type::getDoubleTy(*TheContext), 2, VarName);
-  Variable->addIncoming(StartVal, PreheaderBB);
 
-  Value *OldVal = NamedValues[VarName];
-  NamedValues[VarName] = Variable;
+  AllocaInst *OldVal = NamedValues[VarName];
+  NamedValues[VarName] = Alloca;
+
   if (!Body->codegen())
     return nullptr;
 
@@ -105,22 +107,23 @@ Value *ForExprAST::codegen() {
   } else {
     StepVal = ConstantFP::get(*TheContext, APFloat(1.0));
   }
-  Value *NextVal = Builder->CreateFAdd(Variable, StepVal, "nextvar");
 
   Value *EndCond = End->codegen();
   if (!EndCond)
     return nullptr;
 
+  Value *CurVar =
+      Builder->CreateLoad(Alloca->getAllocatedType(), Alloca, VarName.c_str());
+  Value *NextVar = Builder->CreateFAdd(CurVar, StepVal, "nextvar");
+  Builder->CreateStore(NextVar, Alloca);
+
   EndCond = Builder->CreateFCmpONE(
       EndCond, ConstantFP::get(*TheContext, APFloat(0.0)), "loopcond");
 
-  BasicBlock *LoopEndBB = Builder->GetInsertBlock();
   BasicBlock *AfterBB =
       BasicBlock::Create(*TheContext, "afterloop", TheFunction);
   Builder->CreateCondBr(EndCond, LoopBB, AfterBB);
   Builder->SetInsertPoint(AfterBB);
-
-  Variable->addIncoming(NextVal, LoopEndBB);
 
   if (OldVal)
     NamedValues[VarName] = OldVal;
@@ -131,6 +134,22 @@ Value *ForExprAST::codegen() {
 }
 
 Value *BinaryExprAST::codegen() {
+
+  if (Op == '=') {
+    VariableExprAST *LHSE = static_cast<VariableExprAST *>(LHS.get());
+    if (!LHSE)
+      return LogErrorV("Destination of '=' must be a variable");
+    Value *Val = RHS->codegen();
+    if (!Val)
+      return nullptr;
+    AllocaInst *Alloca = NamedValues[LHSE->getName()];
+    if (!Alloca)
+      return LogErrorV("Unknow variable name");
+
+    Builder->CreateStore(Val, Alloca);
+    return Val;
+  }
+
   Value *L = LHS->codegen();
   Value *R = RHS->codegen();
 
@@ -220,8 +239,13 @@ Function *FunctionAST::codegen() {
 
   // Record the function arguments in the NamedValues map.
   NamedValues.clear();
-  for (auto &Arg : TheFunction->args())
-    NamedValues[std::string(Arg.getName())] = &Arg;
+  for (auto &Arg : TheFunction->args()) {
+
+    AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName());
+    Builder->CreateStore(&Arg, Alloca);
+
+    NamedValues[std::string(Arg.getName())] = Alloca;
+  }
 
   if (Value *RetVal = Body->codegen()) {
     Builder->CreateRet(RetVal);
@@ -260,4 +284,38 @@ Value *UnaryExprAST::codegen() {
     return LogErrorV("Unknown unary operator");
 
   return Builder->CreateCall(F, OperandV, "unop");
+}
+
+Value *VarExprAST::codegen() {
+  std::vector<AllocaInst *> OldBindings;
+
+  Function *TheFunction = Builder->GetInsertBlock()->getParent();
+
+  for (size_t i = 0, e = VarNames.size(); i != e; ++i) {
+    const std::string &VarName = VarNames[i].first;
+    ExprAST *Init = VarNames[i].second.get();
+
+    Value *InitVal;
+    if (Init) {
+      InitVal = Init->codegen();
+      if (!InitVal)
+        return nullptr;
+    } else
+      InitVal = ConstantFP::get(*TheContext, APFloat(0.0));
+
+    AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, VarName);
+    Builder->CreateStore(InitVal, Alloca);
+    OldBindings.push_back(NamedValues[VarName]);
+
+    NamedValues[VarName] = Alloca;
+  }
+
+  Value *BodyVal = Body->codegen();
+  if (!BodyVal)
+    return nullptr;
+
+  for (size_t i = 0, e = VarNames.size(); i != e; ++i)
+    NamedValues[VarNames[i].first] = OldBindings[i];
+
+  return BodyVal;
 }

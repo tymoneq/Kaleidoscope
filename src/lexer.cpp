@@ -52,6 +52,8 @@ Token gettok() {
       return Token::tok_binary;
     else if (IdentifierStr == "unary")
       return Token::tok_unary;
+    else if (IdentifierStr == "var")
+      return Token::tok_var;
     return Token::tok_identifier;
   }
 
@@ -228,6 +230,43 @@ static std::unique_ptr<ExprAST> ParseForExpr() {
                                       std::move(Step), std::move(Body));
 }
 
+static std::unique_ptr<ExprAST> ParseVarExpr() {
+  getNextToken();
+  std::vector<std::pair<std::string, std::unique_ptr<ExprAST>>> VarNames;
+  if (CurTok != Token::tok_identifier)
+    return LogError("Expected identifier after var");
+
+  while (true) {
+    std::string Name = IdentifierStr;
+    getNextToken();
+
+    std::unique_ptr<ExprAST> Init;
+    if (CurTok == Token::tok_char && ThisChar == '=') {
+      getNextToken();
+      Init = ParseExpression();
+      if (!Init)
+        return nullptr;
+    }
+    VarNames.push_back(std::make_pair(Name, std::move(Init)));
+
+    if (CurTok != Token::tok_char)
+      break;
+    getNextToken();
+
+    if (CurTok != Token::tok_identifier)
+      return LogError("expected identifier list after var");
+  }
+  if (CurTok != Token::tok_in)
+    return LogError("expected 'in' keyword after 'var'");
+  getNextToken();
+
+  auto Body = ParseExpression();
+  if (!Body)
+    return nullptr;
+
+  return std::make_unique<VarExprAST>(std::move(VarNames), std::move(Body));
+}
+
 /// primary
 ///   ::= identifierexpr
 ///   ::= numberexpr
@@ -243,6 +282,8 @@ static std::unique_ptr<ExprAST> ParsePrimary() {
     return ParseIfExpr();
   else if (CurTok == Token::tok_for)
     return ParseForExpr();
+  else if (CurTok == Token::tok_var)
+    return ParseVarExpr();
   return LogError("unknown token when expecting an expression");
 }
 
