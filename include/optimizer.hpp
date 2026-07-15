@@ -2,3 +2,5 @@
 
 
 void InitializeModuleAndManagers(void);
+
+int compileToMachine();

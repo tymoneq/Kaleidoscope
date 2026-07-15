@@ -9,6 +9,7 @@
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Value.h>
 #include <llvm/Support/Error.h>
+#include <llvm/Support/raw_ostream.h>
 #include <map>
 #include <memory>
 #include <string>
@@ -446,9 +447,11 @@ static void HandleDefinition() {
       fprintf(stderr, "Read function definition:");
       FnIR->print(errs());
       fprintf(stderr, "\n");
-      ExitOnErr(TheJIT->addModule(
-          ThreadSafeModule(std::move(TheModule), std::move(TheContext))));
-      InitializeModuleAndManagers();
+
+      //  JIT
+      //  ExitOnErr(TheJIT->addModule(
+      //      ThreadSafeModule(std::move(TheModule), std::move(TheContext))));
+      //  InitializeModuleAndManagers();
     }
   } else {
     // Skip token for error recovery.
@@ -474,17 +477,23 @@ static void HandleTopLevelExpression() {
   // Evaluate a top-level expression into an anonymous function.
   if (auto FnAST = ParseTopLevelExpr()) {
     if (auto *FnIR = FnAST->codegen()) {
-      auto RT = TheJIT->getMainJITDylib().createResourceTracker();
-      auto TSM = ThreadSafeModule(std::move(TheModule), std::move(TheContext));
-      ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
-      InitializeModuleAndManagers();
 
-      auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr"));
-      double (*FP)() = ExprSymbol.toPtr<double (*)()>();
-      fprintf(stderr, "Evaluated to %f\n", FP());
+      fprintf(stderr, "Read top-level expression:");
+      FnIR->print(errs());
+      fprintf(stderr, "\n");
 
-      // Delete the anonymous expression module from the JIT.
-      ExitOnErr(RT->remove());
+      // JIT code
+      //   auto RT = TheJIT->getMainJITDylib().createResourceTracker();
+      //  auto TSM = ThreadSafeModule(std::move(TheModule),
+      //  std::move(TheContext)); ExitOnErr(TheJIT->addModule(std::move(TSM),
+      //  RT)); InitializeModuleAndManagers();
+
+      //  auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr"));
+      //  double (*FP)() = ExprSymbol.toPtr<double (*)()>();
+      //  fprintf(stderr, "Evaluated to %f\n", FP());
+
+      //   Delete the anonymous expression module from the JIT.
+      //  ExitOnErr(RT->remove());
     }
   } else {
     // Skip token for error recovery.
